@@ -10,7 +10,7 @@ int main(void)
 	int quan;
 	int price;
 	int sum;
-	char editPrice[50];
+	char edit_price[50];
 	
 	
 	printf("’P‰¿,”—Ê-->");
@@ -19,29 +19,42 @@ int main(void)
 	while(unit != 0 && quan != 0)
 	{
 		price = unit * quan;
-		CurrencyEdit(price, editPrice);
-		printf("‹àŠz:%s\n", editPrice);
+		CurrencyEdit(price, edit_price);
+		printf("‹àŠz:%s\n", edit_price);
 		
 		sum += price;
 		printf("’P‰¿,”—Ê-->");
 		scanf("%d,%d", &unit, &quan);
 	}
 	
-	CurrencyEdit(sum, editPrice);
-	printf("‡Œv‹àŠz:%s\n",editPrice);
+	CurrencyEdit(sum, edit_price);
+	printf("‡Œv‹àŠz:%s\n",edit_price);
+	
+	return 0;
 }
 ///////////////////////////////
 
 void CurrencyEdit(int price, char *edit)
 {
-	char editer[50];
-	char 
-	int work;
 	int idx;
-	idx = 0;
+	int i;
+	int level;
 	
-	sprintf(editer, "\\\\%d");
-	while(work > 0)
+	sprintf(edit, "\\%d", price);
 	
-	sprintf( 
+	for(idx = 0; edit[idx] != '\0'; idx++){
+	}
+	
+	level = 1;
+	while( (price / 1000) > 0 )
+	{
+		for(i = 0; i < 4 * level; i++)
+		{
+			edit[idx - i + 1] = edit[idx - i];
+		}
+		edit[idx - i + 1] = ',';
+		price = price / 1000;
+		idx++;
+		level++;
+	}
 }

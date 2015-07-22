@@ -20,14 +20,14 @@ int	main(void)
 
 void SortDisp(int dt1, int dt2)
 {
-	int *minp = &dt1;
-	int *notMinp = &dt2;
+	int tmp;
 	
 	if(dt1 > dt2){
-		minp = &dt2;
-		notMinp = &dt1;
+		tmp = dt1;
+		dt1 = dt2;
+		dt2 = tmp;
 	}
-	printf("数値1:%d\n",*minp);
-	printf("数値2:%d\n",*notMinp);
+	printf("数値1:%d\n",dt1);
+	printf("数値2:%d\n",dt2);
 	return;
 }

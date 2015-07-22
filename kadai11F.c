@@ -38,8 +38,10 @@ char *MojiSearch(char *m, char *s)
 	}
 	
 	if( i != mLen){
-		return (m + i);
+		m += i;
 	} else{
-		return NULL;
+		m = NULL;
 	}
+	
+	return m;
 }
