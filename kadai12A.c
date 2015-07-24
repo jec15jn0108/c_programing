@@ -8,19 +8,23 @@ int main(void)
 	char str_tmp[100];
 	int i;
 	
-	FILE *kadai_txt;
+	FILE *txt_p;
 	
-	fopen(kadai_txt, "w");
-	
-	for( i = 0; i < 2; i++)
+	txt_p = fopen("./kadai12 files/kadai12A.txt", "w");
+	if(txt_p != NULL)
 	{
-		printf("整数データ-->");
-		scanf("%d", &num_tmp);
-		printf("文字列データ-->");
-		scanf("%s", str_tmp);
-		
-		fprintf(kadai_txt, "%d %s\n", num_tmp, str_tmp);
+		for( i = 0; i < 2; i++)
+		{
+			printf("整数データ-->");
+			scanf("%d", &num_tmp);
+			printf("文字列データ-->");
+			scanf("%s", str_tmp);
+			
+			fprintf(txt_p, "%d %s\n", num_tmp, str_tmp);
+		}
 	}
+	
+	fclose("./kadai12 files/kadai12A.txt");
 	
 	return 0;
 }
