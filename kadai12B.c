@@ -22,7 +22,7 @@ int main(void)
 		}
 	}
 	
-	fclose("./kadai12 files/kadai12A.txt");
+	fclose(kadai12A_txt);
 	
 	return 0;
 }

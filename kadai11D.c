@@ -20,8 +20,6 @@ int	main(void)
 int MyLen( char *ss)
 {
 	int i;
-	for(i = 0; *(ss + i) != '\0'; i++){
-		/* nothing*/
-	}
+	for(i = 0; *(ss + i) != '\0'; i++);
 	return i;
 }
