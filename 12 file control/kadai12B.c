@@ -2,27 +2,37 @@
 
 /*15jn0108 Onogaki Kaichi*/
 
+void read(FILE *input);
+
 int main(void)
+{
+	FILE *input;
+	
+	input = fopen("./kadai12 files/kadai12A.txt","r");
+	if(input != NULL)
+	{
+		read(input);
+		fclose(input);
+	}
+	else
+	{
+		printf("Failed open File.");
+	}
+	
+	return 0;
+}
+
+void read(FILE *input)
 {
 	int in_num;
 	char in_str[50];
 	int i;
 	
-	FILE *kadai12A_txt;
+	printf("®” •¶š—ñ\n");
 	
-	kadai12A_txt = fopen("./kadai12 files/kadai12A.txt","r");
-	if(kadai12A_txt != NULL)
+	for(i = 0; i < 2; i++)
 	{
-		printf("®” •¶š—ñ\n");
-	
-		for(i = 0; i < 2; i++)
-		{
-			fscanf(kadai12A_txt, "%d %s", &in_num, in_str);
-			printf("%4d %s\n", in_num, in_str);
-		}
+		fscanf(input, "%d %s", &in_num, in_str);
+		printf("%4d %s\n", in_num, in_str);
 	}
-	
-	fclose(kadai12A_txt);
-	
-	return 0;
 }

@@ -7,7 +7,7 @@ int main(void)
 	FILE *source_c;
 	
 	char file_name[100];
-	char line[1024];
+	char line[100];
 	char *ret;
 	
 	printf("ƒtƒ@ƒCƒ‹–¼“ü—Í-->");
@@ -17,7 +17,7 @@ int main(void)
 	
 	if(source_c != NULL)
 	{
-		while( fgets(line, 1024, source_c) )
+		while( fgets(line, 100, source_c) )
 		{
 			printf("%s", line);
 		}
@@ -27,6 +27,6 @@ int main(void)
 		printf("Failed open the file.\n");
 	}
 	
-	fclose(source_c);
+	fclose(file_name);
 	return 0;
 }
