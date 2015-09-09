@@ -26,12 +26,12 @@
 /* Input data in data.txt         */
 /* Output histogram to output.txt */
 /*                                */
-/* 15JN0108 Onogaki Kaichi		    */
+/* 15JN0108 Onogaki Kaichi        */
 /* Char Code = UTF-8              */
 
 typedef struct {
-  int min;  //最小値
-  int max;  //最大値
+  int min;                //最小値
+  int max;                //最大値
 } min_max_t;
 
 typedef struct {
@@ -59,16 +59,18 @@ void      close_files(files_t *files);
 int main(void)
 {
   files_t files;
-//  int     ret;
+  int     ret;
 
   //3つのファイルを開く　なければ作る
-  if(open_files(&files)){
-    if(histogram_main(&files) != 1){
+  if((ret = open_files(&files)) == 1){
+    if(histogram_main(&files)){
       error_msg(OTHER_ERROR);
     }
     close_files(&files);
-  } else{
+  } else if(ret == 0){
     error_msg(OPEN_ERROR);
+  } else{
+    create_file();
   }
 
   return EXIT_SUCCESS;
@@ -86,8 +88,8 @@ int histogram_main(files_t *files)
   int         ret = 0;
 
   //データにエラーがなければtrue
-  if(read_data(files, &min_max, &range)){
-
+  if((ret = read_data(files, &min_max, &range)) > 0){
+    ret = 0;
     //級の数(cntの使用数)を求める(i_max)
     i_max = (min_max.max / range * range - min_max.min / range * range) / range + 1;
 
@@ -124,7 +126,7 @@ int open_files(files_t *files)
 
   if ((files->inputp = fopen(DATA_TXT, "r")) == NULL) {
     /*Failed open data.txt*/
-    create_file();
+    open_flag = -1;
   } else if ((files->tmp_data = tmpfile()) == NULL ){
     /*Failed open data.bin*/
     fclose(files->inputp);
@@ -245,7 +247,7 @@ int aggregate(FILE *tmp_data,int cnt[], int *cnt_max, int range, int redunce, in
     }
   }
 
-  if(*cnt_max > 0){
+  if(*cnt_max > 0 && *cnt_max < NUM){
     ret = 1;
   }
 
@@ -269,7 +271,7 @@ int make_histogram(int i_max, int cnt_max, int cnt[], char histogram[][NUM])
     }
   }
 
-  return 1;
+  return i;
 }
 /********************************************************************************/
 int initialize_histogram(int i_max, int cnt_max, char histogram[][NUM])
@@ -303,7 +305,7 @@ int draw_histogram(FILE *outputp, int i_max, int cnt_max, int cnt[], char histog
   int i, j;
   int low_next;
 
-  // Y軸
+  // Row
   for (j = cnt_max ; j >= 0; j--){
     if (j % 5 == 0){
       fprintf(outputp, ROW_FORMAT, j);
@@ -313,7 +315,7 @@ int draw_histogram(FILE *outputp, int i_max, int cnt_max, int cnt[], char histog
     fprintf(outputp, "_|");
 
     low_next = 0;
-    // X軸
+    // Column
     for (i = 0; i < i_max; i++){
       if(low_next == 0){
         writer(histogram[i][j], 1, outputp);
@@ -338,7 +340,7 @@ int draw_histogram(FILE *outputp, int i_max, int cnt_max, int cnt[], char histog
     }
     fprintf(outputp, "\n");
   }
-  return 1;
+  return i;
 }
 /********************************************************************************/
 int axis_label(FILE *outputp, int min, int range, int i_max)
@@ -363,7 +365,7 @@ int axis_label(FILE *outputp, int min, int range, int i_max)
     }
     fprintf(outputp, "\n");
   }
-  return 1;
+  return i;
 }
 /********************************************************************************/
 //Close files.
