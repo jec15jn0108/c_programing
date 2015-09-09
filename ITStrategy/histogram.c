@@ -3,16 +3,31 @@
 #include <math.h>
 #include <windows.h>
 
-#define  DATA_TXT    "data.txt"
+#define DATA_TXT    "data.txt"
 #define OUTPUT_TXT  "output.txt"
 
-#define NUM      1024
-#define SPACE    ' '
-#define SPACE_SIZE  4
+#define NUM           1024
+#define SPACE         ' '
+#define SPACE_SIZE    4
+#define LABEL_LINE    3
+#define LABEL_FORMAT  " %4d"
+#define ROW_SPACE     6
+#define ROW_FORMAT    "%6d"
 
-/* ヒストグラムを書く                */
-/* 15JN0108 Onogaki Kaichi		  */
-/* Char Code = UTF-8            */
+// Error Code
+#define FILE_NOTHING  -1
+#define OPEN_ERROR    -2
+#define RANGE_ERROR   -3
+#define DATA_NOTHING  -4
+#define DATA_ERROR    -5
+#define OTHER_ERROR   -6
+
+/* Make Histogram!                */
+/* Input data in data.txt         */
+/* Output histogram to output.txt */
+/*                                */
+/* 15JN0108 Onogaki Kaichi		    */
+/* Char Code = UTF-8              */
 
 typedef struct {
   int min;  //最小値
@@ -26,43 +41,49 @@ typedef struct {
 } files_t ;
 
 /*Prototype Declaration*/
-void      histogram_main(files_t *files);
+int       histogram_main(files_t *files);
 int       open_files(files_t *files);
-void      create_files(void);
+void      create_file(void);
 void      error_msg(int flag);
 int       read_data(files_t *files, min_max_t *min_max, int *range);
-void      initialize_cnt(int i_max, int cnt[]);
-void      aggregate(FILE *tmp_data,int cnt[], int *cnt_max, int range, int redunce, int i_max);
-void      make_histogram(int i_max, int cnt_max, int cnt[], char histogram[][NUM]);
-void      initialize_histogram(int i_max, int cnt_max, char histogram[][NUM]);
+int       *initialize_cnt(int cnt[], int i_max);
+int       aggregate(FILE *tmp_data,int cnt[], int *cnt_max, int range, int redunce, int i_max);
+int       make_histogram(int i_max, int cnt_max, int cnt[], char histogram[][NUM]);
+int       initialize_histogram(int i_max, int cnt_max, char histogram[][NUM]);
 void      writer(char ch, int num, FILE *outputp);
-void      draw_histogram(FILE *outputp, int i_max, int cnt_max, int cnt[], char histogram[][NUM]);
-void      axis_label(FILE *outputp, int min, int range, int i_max);
+int       draw_histogram(FILE *outputp, int i_max, int cnt_max, int cnt[], char histogram[][NUM]);
+int       axis_label(FILE *outputp, int min, int range, int i_max);
 void      close_files(files_t *files);
 
-/**** main program ***********************************************************************/
+/**** main program **************************************************************/
 int main(void)
 {
   files_t files;
+//  int     ret;
 
   //3つのファイルを開く　なければ作る
   if(open_files(&files)){
-    histogram_main(&files);
+    if(histogram_main(&files) != 1){
+      error_msg(OTHER_ERROR);
+    }
     close_files(&files);
+  } else{
+    error_msg(OPEN_ERROR);
   }
 
-  return 0;
+  return EXIT_SUCCESS;
 }
-/******************************************************************************************************/
-void histogram_main(files_t *files)
+/********************************************************************************/
+int histogram_main(files_t *files)
 {
-  int         range;                        //データを区切るrange
+  int         range;                        //データを区切る範囲
   int         redunce;                      //最小級を添字0に合わせる
   int         i_max;                        //級の数
   int         cnt[NUM];                     //階級ごとの頻度
   int         cnt_max;                      //最大頻度
   char        histogram[NUM][NUM];          //ヒストグラム
-  min_max_t   min_max;                      //
+  min_max_t   min_max;                      //最小・最大数値
+  int         ret = 0;
 
   //データにエラーがなければtrue
   if(read_data(files, &min_max, &range)){
@@ -73,29 +94,29 @@ void histogram_main(files_t *files)
     //最小級を添字0に合わせる
     redunce = min_max.min / range;
 
-    //cntの初期化
-    initialize_cnt(i_max, cnt);
-
     //return tmpfile!
     rewind(files->tmp_data);
 
     //データの集計
-    aggregate(files->tmp_data, cnt, &cnt_max, range, redunce, i_max);
-
-    /*  ↑集計       描画↓    */
-
-    //ヒストグラムの作成
-    make_histogram(i_max, cnt_max, cnt, histogram);
-
-    //ヒストグラム描画処理
-    draw_histogram(files->outputp, i_max, cnt_max, cnt, histogram);
-    axis_label(files->outputp, min_max.min, range, i_max);
-
-    MessageBox(NULL, TEXT("Successful!\nCreated histogram in [output.txt]."),
-        TEXT("Successful Create Histogram"), MB_OK);
+    if(aggregate(files->tmp_data, cnt, &cnt_max, range, redunce, i_max)){
+      /*  ↑集計       描画↓    */
+      //ヒストグラムの作成
+      if(make_histogram(i_max, cnt_max, cnt, histogram)){
+        //ヒストグラム描画処理
+        if(draw_histogram(files->outputp, i_max, cnt_max, cnt, histogram)){
+          if(axis_label(files->outputp, min_max.min, range, i_max)){
+            MessageBox(NULL, TEXT("Successful!\nCreated histogram in [output.txt]."),
+              TEXT("Successful Create Histogram"), MB_OK);
+            ret = 1;
+          }
+        }
+      }
+    }
   }
+
+  return ret;
 }
-/******************************************************************************************************/
+/********************************************************************************/
 //3つのファイルを開く
 int open_files(files_t *files)
 {
@@ -103,7 +124,7 @@ int open_files(files_t *files)
 
   if ((files->inputp = fopen(DATA_TXT, "r")) == NULL) {
     /*Failed open data.txt*/
-    create_files();
+    create_file();
   } else if ((files->tmp_data = tmpfile()) == NULL ){
     /*Failed open data.bin*/
     fclose(files->inputp);
@@ -111,52 +132,62 @@ int open_files(files_t *files)
     /*Failed open output.txt*/
     fclose(files->inputp);
     fclose(files->tmp_data);
+
   } else {
-    open_flag = 1;
     /*Successful open all files*/
+    open_flag = 1;
   }
   return open_flag;
 }
-/******************************************************************************************************/
+/********************************************************************************/
 //data.txtを作る
-void create_files(void)
+void create_file(void)
 {
   FILE *inputp;
 
   inputp = fopen(DATA_TXT, "w");
   fprintf(inputp, "ClassWidth:\n");
-  MessageBox(NULL, TEXT("Created [data.txt].\n[Format]\nFirst Line:[ClassWidth:(Class Width)]\nSecond line later:[(data)]"),
+  MessageBox(NULL, TEXT("Created [data.txt].\n[Format]\n1st Line:[ClassWidth:(Class Width)]\n2nd line later:[(data)]"),
       TEXT("Histogram"), MB_OK);
   fclose(inputp);
 }
-/******************************************************************************************************/
-void error_msg(int flag)
+/********************************************************************************/
+void error_msg(int error_code)
 {
-  if(flag == 0){
-    MessageBox(NULL, TEXT("ERROR!!\nThere is NO DATA in [data.txt] or Class Width is 0.\n[Format]\nFirst Line:[ClassWidth:(Class Width)]\nSecond line later:[(data)]"),
+  if(error_code == DATA_NOTHING){
+    MessageBox(NULL, TEXT("ERROR!!\nThere is NO DATA in [data.txt]\n[Format]\n1st Line:[ClassWidth:(Class Width)]\n2nd line later:[(data)]"),
       TEXT("Histogram ERROR"), MB_OK);
-  } else if(flag == -1){
-    MessageBox(NULL, TEXT("ERROR!!\nThere is typing error in [data.txt]\n[Format]\nFirst Line:[ClassWidth:(Class Width)]\nSecond line later:[(data)]"),
+  } else if(error_code == DATA_ERROR){
+    MessageBox(NULL, TEXT("ERROR!!\nThere is typing error in [data.txt]\n[Format]\n1st Line:[ClassWidth:(Class Width)]\n2nd line later:[(data)]"),
+      TEXT("Histogram ERROR"), MB_OK);
+  } else if(error_code == OPEN_ERROR){
+    MessageBox(NULL, TEXT("ERROR!!\nFailed open Files!"),
+      TEXT("Histogram ERROR"), MB_OK);
+  } else if(error_code == RANGE_ERROR){
+    MessageBox(NULL, TEXT("ERROR!!\nClass Width is NOTHING or 0!\n[Format]\n1st Line:[ClassWidth:(Class Width)]\n2nd line later:[(data)]"),
+      TEXT("Histogram ERROR"), MB_OK);
+  } else if(error_code == OTHER_ERROR){
+    MessageBox(NULL, TEXT("ERROR!!\nOops! Sorry, it occurs some processing error...\nPlease check files and run one more time"),
       TEXT("Histogram ERROR"), MB_OK);
   }
 }
-/******************************************************************************************************/
+/********************************************************************************/
 //データを一時ファイルに書き込み・データの最大値、最小値を求める
 int read_data(files_t *files, min_max_t *min_max, int *range)
 {
   int indat;
   int ret;
-  int data_flag = 0;
+  int data_flag;
 
   if (fscanf(files->inputp, "ClassWidth:%d", range) != EOF || *range != 0){
-    ret = fscanf(files->inputp, "%d", &indat);           //FirstData
+    ret = fscanf(files->inputp, "%d", &indat);           //1stData
     if(ret != 0 && ret != EOF){
       min_max->min = indat;
       min_max->max = indat;
       fwrite(&indat, sizeof(int), 1, files->tmp_data);
       data_flag = 1;
 
-      ret = fscanf(files->inputp, "%d", &indat);        //SecondData on and after
+      ret = fscanf(files->inputp, "%d", &indat);        //2ndData on and after
       while(ret != 0 && ret != EOF){
         min_max->min = fmin(min_max->min, indat);
         min_max->max = fmax(min_max->max, indat);
@@ -164,35 +195,44 @@ int read_data(files_t *files, min_max_t *min_max, int *range)
         fwrite(&indat, sizeof(int), 1, files->tmp_data);
         ret = fscanf(files->inputp, "%d", &indat);
       }
-
       if(ret == 0){
-        data_flag = -1;
+        data_flag = DATA_ERROR;
       }
+
+    } else{
+      data_flag = DATA_NOTHING;
     }
+
+  } else{
+    data_flag = RANGE_ERROR;
   }
 
-  if(data_flag <= 0){
+  if(data_flag < 0){
     error_msg(data_flag);
     data_flag = 0;
   }
 
   return data_flag;
 }
-/******************************************************************************************************/
-void initialize_cnt(int i_max, int cnt[])
+/********************************************************************************/
+int *initialize_cnt(int cnt[], int i_max)
 {
   int i;
 
   for (i = 0; i < i_max + 1; i++){
     cnt[i] = 0;
   }
-  return;
+  return cnt;
 }
-/******************************************************************************************************/
-void aggregate(FILE *tmp_data,int cnt[], int *cnt_max, int range, int redunce, int i_max)
+/********************************************************************************/
+int aggregate(FILE *tmp_data,int cnt[], int *cnt_max, int range, int redunce, int i_max)
 {
   int indat;
   int i;
+  int ret = 0;
+
+  //cntの初期化
+  initialize_cnt(cnt, i_max);
 
   while (fread(&indat, sizeof(int), 1, tmp_data)){
     cnt[indat / range - redunce]++;
@@ -204,9 +244,15 @@ void aggregate(FILE *tmp_data,int cnt[], int *cnt_max, int range, int redunce, i
       *cnt_max = cnt[i];
     }
   }
+
+  if(*cnt_max > 0){
+    ret = 1;
+  }
+
+  return ret;
 }
-/******************************************************************************************************/
-void make_histogram(int i_max, int cnt_max, int cnt[], char histogram[][NUM])
+/********************************************************************************/
+int make_histogram(int i_max, int cnt_max, int cnt[], char histogram[][NUM])
 {
   int i;
   int j;
@@ -222,9 +268,11 @@ void make_histogram(int i_max, int cnt_max, int cnt[], char histogram[][NUM])
       }
     }
   }
+
+  return 1;
 }
-/******************************************************************************************************/
-void initialize_histogram(int i_max, int cnt_max, char histogram[][NUM])
+/********************************************************************************/
+int initialize_histogram(int i_max, int cnt_max, char histogram[][NUM])
 {
   int i;
   int j;
@@ -234,8 +282,9 @@ void initialize_histogram(int i_max, int cnt_max, char histogram[][NUM])
       histogram[i][j] = SPACE;
     }
   }
+  return i;
 }
-/******************************************************************************************************/
+/********************************************************************************/
 void writer(char ch, int num, FILE *outputp)
 {
   int i;
@@ -248,24 +297,25 @@ void writer(char ch, int num, FILE *outputp)
     fprintf(outputp, "%c", ch);
   }
 }
-/******************************************************************************************************/
-void draw_histogram(FILE *outputp, int i_max, int cnt_max, int cnt[], char histogram[][NUM])
+/********************************************************************************/
+int draw_histogram(FILE *outputp, int i_max, int cnt_max, int cnt[], char histogram[][NUM])
 {
   int i, j;
-  int flag;
+  int low_next;
 
   // Y軸
   for (j = cnt_max ; j >= 0; j--){
     if (j % 5 == 0){
-      fprintf(outputp, "%6d", j);
+      fprintf(outputp, ROW_FORMAT, j);
     } else{
-      writer(SPACE, 6, outputp);
+      writer(SPACE, ROW_SPACE, outputp);
     }
     fprintf(outputp, "_|");
-    flag = 0;
+
+    low_next = 0;
     // X軸
     for (i = 0; i < i_max; i++){
-      if(flag == 0){
+      if(low_next == 0){
         writer(histogram[i][j], 1, outputp);
       }
 
@@ -278,43 +328,44 @@ void draw_histogram(FILE *outputp, int i_max, int cnt_max, int cnt[], char histo
       } else{
         writer('_', SPACE_SIZE, outputp);
       }
-      flag = 0;
 
       if(cnt[i] > cnt[i + 1]){
         writer(histogram[i][j], 1, outputp);
-        flag = 1;
+        low_next = 1;
+      } else{
+        low_next = 0;
       }
     }
     fprintf(outputp, "\n");
   }
+  return 1;
 }
-/******************************************************************************************************/
-void axis_label(FILE *outputp, int min, int range, int i_max)
+/********************************************************************************/
+int axis_label(FILE *outputp, int min, int range, int i_max)
 {
-  int i;
+  int i, j;
 
   while (min > 10000){
     min = min / 1000;
     range = range / 1000;
   }
-  fprintf(outputp, "\n");
-  writer(SPACE, 5, outputp);
-  for (i = 0; i < i_max; i++){
-    fprintf(outputp, "%5d", min / range * range + range * i);
+  for(i = 0; i < LABEL_LINE; i++){
+    writer(SPACE, ROW_SPACE + 2, outputp);
+    for (j = 0; j < i_max; j++){
+      if(i == 0){
+        fprintf(outputp, LABEL_FORMAT, min / range * range + range * j);
+      } else if(i == 1){
+        writer(SPACE, SPACE_SIZE - 1, outputp);
+        fprintf(outputp, "| ");
+      } else if(i == 2){
+        fprintf(outputp, LABEL_FORMAT, min / range * range + range * (j + 1) - 1);
+      }
+    }
+    fprintf(outputp, "\n");
   }
-  fprintf(outputp, "\n");
-  writer(SPACE, 5, outputp);
-  for (i = 0; i < i_max; i++){
-    fprintf(outputp, "   | ");
-  }
-  fprintf(outputp, "\n");
-  writer(SPACE, 5, outputp);
-  for (i = 0; i < i_max - 1; i++){
-    fprintf(outputp, "%5d", min / range * range + range * (i + 1) - 1);
-  }
-
+  return 1;
 }
-/******************************************************************************************************/
+/********************************************************************************/
 //Close files.
 void close_files(files_t *files)
 {
