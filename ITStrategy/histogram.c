@@ -63,7 +63,7 @@ int main(void)
 
   //3つのファイルを開く　なければ作る
   if((ret = open_files(&files)) == 1){
-    if(histogram_main(&files)){
+    if(histogram_main(&files) == 0){
       error_msg(OTHER_ERROR);
     }
     close_files(&files);
